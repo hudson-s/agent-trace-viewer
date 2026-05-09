@@ -1,0 +1,32 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "帮我查一下 agent tracing 工具有哪些。"
+    },
+    {
+      "role": "assistant",
+      "content": "我先搜索一下相关资料。",
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "web_search",
+            "arguments": "{\"query\":\"agent tracing tools\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "web_search",
+      "content": "{\"results\":[\"Phoenix\",\"Langfuse\",\"LangSmith\"]}"
+    },
+    {
+      "role": "assistant",
+      "content": "常见工具有 Phoenix、Langfuse 和 LangSmith。"
+    }
+  ]
+}

@@ -1,0 +1,155 @@
+# Agent Trace Viewer
+
+Agent Trace Viewer turns agent chat JSON into readable timelines, tool-call traces, Mermaid diagrams, and a local HTML viewer.
+
+It is designed for learning how an agent actually behaves: what the user asked, when the assistant called a tool, what arguments were sent, what came back, and how the assistant responded.
+
+## Features
+
+- Parse OpenAI/Codex-style `messages` JSON.
+- Extract `message`, `tool_call`, and `tool_result` events.
+- Generate a collapsible dark-tech HTML trace viewer.
+- Embed Mermaid sequence diagrams in the HTML page.
+- Open the Mermaid diagram as a full-page dark-background viewer.
+- Generate Markdown, Mermaid, and normalized JSON outputs.
+- Estimate transcript token footprint with `tiktoken`.
+- Create an `out/index.html` entry page that previews local JSON files and links generated traces.
+
+## Install
+
+```powershell
+python -m pip install -e .
+```
+
+## Usage
+
+Generate all views:
+
+```powershell
+agent-trace tests\fixtures\openai-chat.json --out out\openai-chat
+```
+
+Generated files:
+
+```text
+out/
+  index.html
+  openai-chat/
+    timeline.json
+    trace.html
+    trace.md
+    trace.mmd
+    trace-diagram.md
+```
+
+Print a single format to stdout:
+
+```powershell
+agent-trace tests\fixtures\openai-chat.json --format markdown
+agent-trace tests\fixtures\openai-chat.json --format mermaid
+agent-trace tests\fixtures\openai-chat.json --format json
+agent-trace tests\fixtures\openai-chat.json --format html
+```
+
+## Input Shape
+
+The first adapter supports common chat transcript structures:
+
+- Top-level `messages` array.
+- Or a top-level list of messages.
+- Assistant messages with `tool_calls`.
+- Tool messages with `tool_call_id`, `name`, and `content`.
+
+Example:
+
+```json
+{
+  "messages": [
+    { "role": "user", "content": "Search agent tracing tools." },
+    {
+      "role": "assistant",
+      "content": "I will search.",
+      "tool_calls": [
+        {
+          "id": "call_001",
+          "type": "function",
+          "function": {
+            "name": "web_search",
+            "arguments": "{\"query\":\"agent tracing tools\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_001",
+      "name": "web_search",
+      "content": "{\"results\":[\"Phoenix\",\"Langfuse\",\"LangSmith\"]}"
+    }
+  ]
+}
+```
+
+## Output Views
+
+| File | Purpose |
+|---|---|
+| `timeline.json` | Normalized events and summary stats. |
+| `trace.html` | Main interactive viewer with collapsible rows and Mermaid diagram. |
+| `trace.md` | Human-readable Markdown timeline. |
+| `trace.mmd` | Raw Mermaid sequence diagram. |
+| `trace-diagram.md` | Mermaid wrapped in Markdown for editors that preview Mermaid. |
+| `index.html` | Local entry page for generated traces and JSON preview. |
+
+## Token Stats
+
+Token stats are estimates, not billing records.
+
+- Unit: `token`, the model tokenizer's text unit.
+- Method: `tiktoken:o200k_base` when available.
+- Scope: transcript text footprint after parsing.
+- Limitation: if the source JSON does not contain `usage`, `prompt_tokens`, `completion_tokens`, or `total_tokens`, the tool cannot recover actual provider-billed tokens.
+
+Real multi-turn agent cost can be higher than the transcript footprint, because providers may bill repeated context, system prompts, tool schemas, hidden metadata, or reasoning tokens that are not present in the exported JSON.
+
+## Local Entry Page
+
+After generation, open:
+
+```text
+out\index.html
+```
+
+The entry page can:
+
+- Let you choose a local JSON file for quick browser-side preview.
+- Show message count, tool call count, model, platform, and file size.
+- Link to previously generated `trace.html` pages.
+
+Because static browser pages cannot write local files, full trace generation still happens through the CLI.
+
+## Development
+
+Run tests:
+
+```powershell
+python -m pytest
+```
+
+Run a syntax check:
+
+```powershell
+python -m compileall -q src
+```
+
+## Data Boundaries
+
+The tool only reconstructs what exists in the JSON. It can show messages, tool names, arguments, tool results, errors, and visible reasoning fields if they are present.
+
+It cannot recover hidden model reasoning or exact provider usage data when those fields were not exported.
+
+Generated output under `out/` is ignored by Git.
+
+## License
+
+MIT
