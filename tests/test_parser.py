@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from agent_trace_viewer.cli import _scan_records
 from agent_trace_viewer.parser import parse_file
 from agent_trace_viewer.renderers import render_html, render_index_html, render_mermaid, render_mermaid_markdown
 
@@ -102,3 +103,19 @@ def test_render_index_html_has_file_picker_and_records() -> None:
     assert "session_1/trace.html" in page
     assert "Estimated tokens" in page
     assert "--bg: #071019" in page
+
+
+def test_scan_records_links_from_project_root(tmp_path: Path) -> None:
+    trace_dir = tmp_path / "out" / "session_1"
+    trace_dir.mkdir(parents=True)
+    (trace_dir / "trace.html").write_text("<html></html>", encoding="utf-8")
+    (trace_dir / "timeline.json").write_text(
+        '{"summary":{"events":5,"tool_calls":2,"estimated_tokens":{"total":42}}}',
+        encoding="utf-8",
+    )
+
+    records = _scan_records(tmp_path / "out", tmp_path)
+
+    assert records[0]["href"] == "out/session_1/trace.html"
+    assert records[0]["events"] == 5
+    assert records[0]["estimated_tokens"] == 42

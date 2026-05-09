@@ -13,7 +13,7 @@ It is designed for learning how an agent actually behaves: what the user asked, 
 - Open the Mermaid diagram as a full-page dark-background viewer.
 - Generate Markdown, Mermaid, and normalized JSON outputs.
 - Estimate transcript token footprint with `tiktoken`.
-- Create an `out/index.html` entry page that previews local JSON files and links generated traces.
+- Create a root-level `index.html` entry page that previews local JSON files and links generated traces.
 
 ## Install
 
@@ -33,13 +33,13 @@ Generated files:
 
 ```text
 out/
-  index.html
   openai-chat/
     timeline.json
     trace.html
     trace.md
     trace.mmd
     trace-diagram.md
+index.html
 ```
 
 Print a single format to stdout:
@@ -99,7 +99,7 @@ Example:
 | `trace.md` | Human-readable Markdown timeline. |
 | `trace.mmd` | Raw Mermaid sequence diagram. |
 | `trace-diagram.md` | Mermaid wrapped in Markdown for editors that preview Mermaid. |
-| `index.html` | Local entry page for generated traces and JSON preview. |
+| `index.html` | Root-level local entry page for generated traces and JSON preview. |
 
 ## Token Stats
 
@@ -117,7 +117,7 @@ Real multi-turn agent cost can be higher than the transcript footprint, because 
 After generation, open:
 
 ```text
-out\index.html
+index.html
 ```
 
 The entry page can:
@@ -148,7 +148,7 @@ The tool only reconstructs what exists in the JSON. It can show messages, tool n
 
 It cannot recover hidden model reasoning or exact provider usage data when those fields were not exported.
 
-Generated output under `out/` is ignored by Git.
+Generated output under `out/` and the local root `index.html` entry page are ignored by Git.
 
 ## License
 

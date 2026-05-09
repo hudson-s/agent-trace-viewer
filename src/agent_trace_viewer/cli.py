@@ -39,10 +39,11 @@ def main() -> int:
         (args.out / "trace.mmd").write_text(render_mermaid(trace), encoding="utf-8")
         (args.out / "trace-diagram.md").write_text(render_mermaid_markdown(trace), encoding="utf-8")
         (args.out / "trace.html").write_text(render_html(trace), encoding="utf-8")
-        index_root = args.out.parent
-        (index_root / "index.html").write_text(render_index_html(_scan_records(index_root)), encoding="utf-8")
+        index_path = Path.cwd() / "index.html"
+        records_root = Path.cwd() / "out"
+        index_path.write_text(render_index_html(_scan_records(records_root, index_path.parent)), encoding="utf-8")
         print(f"Wrote trace views to {args.out}")
-        print(f"Wrote index to {index_root / 'index.html'}")
+        print(f"Wrote index to {index_path}")
         return 0
 
     renderers = {
@@ -55,15 +56,17 @@ def main() -> int:
     return 0
 
 
-def _scan_records(root: Path) -> list[dict[str, object]]:
+def _scan_records(root: Path, link_base: Path | None = None) -> list[dict[str, object]]:
     records: list[dict[str, object]] = []
+    link_base = link_base or root
     for trace_html in sorted(root.glob("*/trace.html")):
         folder = trace_html.parent
         summary = _read_summary(folder / "timeline.json")
+        href = trace_html.relative_to(link_base).as_posix()
         records.append(
             {
                 "title": folder.name,
-                "href": f"{folder.name}/trace.html",
+                "href": href,
                 "updated": _format_mtime(trace_html),
                 "events": summary.get("events", 0),
                 "tool_calls": summary.get("tool_calls", 0),
