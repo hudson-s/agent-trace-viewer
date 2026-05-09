@@ -101,6 +101,8 @@ def test_render_index_html_has_file_picker_and_records() -> None:
     assert 'type="file"' in page
     assert 'src="records.js"' in page
     assert "已生成记录" in page
+    assert "默认记录目录" in page
+    assert "当前记录来源" in page
     assert "session_1/trace.html" in page
     assert "Estimated tokens" in page
     assert "--bg: #071019" in page

@@ -466,6 +466,8 @@ def render_index_html(records: list[dict[str, object]] | None = None) -> str:
     .actions {{ display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }}
     .button {{ border: 1px solid var(--line-bright); border-radius: 8px; background: rgba(45,212,191,.12); color: var(--text); padding: 9px 12px; cursor: pointer; }}
     .button:hover {{ background: rgba(45,212,191,.2); }}
+    .path-box {{ margin: 10px 0; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: rgba(8,19,29,.86); color: var(--muted); overflow-wrap: anywhere; }}
+    .path-box strong {{ color: var(--text); }}
     code {{ background: #08131d; border: 1px solid var(--line); border-radius: 6px; padding: 2px 5px; color: var(--green); }}
     @media (max-width: 760px) {{
       .preview {{ grid-template-columns: 1fr; }}
@@ -496,6 +498,10 @@ def render_index_html(records: list[dict[str, object]] | None = None) -> str:
         </label>
         <button class="button" type="button" id="reloadPage">重新载入入口页</button>
       </div>
+      <div class="path-box">
+        <div><strong>默认记录目录：</strong><code>./out</code></div>
+        <div><strong>当前记录来源：</strong><span id="recordSource">等待加载</span></div>
+      </div>
       <p class="hint">如果刚运行过 CLI 生成 trace，刷新本页即可看到最新记录；如果浏览器没有刷新文件，可以选择项目里的 <code>out</code> 目录让页面直接读取记录。</p>
       <div id="records" class="records"></div>
     </section>
@@ -508,9 +514,11 @@ def render_index_html(records: list[dict[str, object]] | None = None) -> str:
     const preview = document.getElementById("preview");
     const commandHint = document.getElementById("commandHint");
     const recordsEl = document.getElementById("records");
+    const recordSource = document.getElementById("recordSource");
     const reloadPage = document.getElementById("reloadPage");
 
-    function renderRecords(records) {{
+    function renderRecords(records, sourceLabel = "records.js -> ./out") {{
+      recordSource.textContent = sourceLabel;
       if (!records.length) {{
         recordsEl.innerHTML = `<p class="empty">还没有生成过 trace。先用 CLI 生成一个记录，刷新本页，或选择 out 目录动态读取。</p>`;
         return;
@@ -587,6 +595,7 @@ def render_index_html(records: list[dict[str, object]] | None = None) -> str:
       const files = Array.from(outDir.files || []);
       const timelines = files.filter((file) => file.name === "timeline.json");
       const records = [];
+      const rootName = files[0] && files[0].webkitRelativePath ? files[0].webkitRelativePath.split("/")[0] : "./out";
       for (const file of timelines) {{
         try {{
           const data = JSON.parse(await file.text());
@@ -609,10 +618,10 @@ def render_index_html(records: list[dict[str, object]] | None = None) -> str:
         }}
       }}
       records.sort((a, b) => a.title.localeCompare(b.title));
-      renderRecords(records);
+      renderRecords(records, `手动选择目录：${{rootName}}`);
     }});
 
-    renderRecords(initialRecords);
+    renderRecords(initialRecords, initialRecords.length ? "records.js -> ./out" : "records.js -> ./out（暂无记录）");
   </script>
 </body>
 </html>
