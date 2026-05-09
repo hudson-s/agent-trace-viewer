@@ -2,7 +2,7 @@ from pathlib import Path
 
 from agent_trace_viewer.cli import _scan_records
 from agent_trace_viewer.parser import parse_file
-from agent_trace_viewer.renderers import render_html, render_index_html, render_mermaid, render_mermaid_markdown, render_records_js
+from agent_trace_viewer.renderers import render_html, render_mermaid, render_mermaid_markdown, render_records_js
 
 
 def test_parse_openai_chat_fixture() -> None:
@@ -84,19 +84,8 @@ def test_render_html_includes_token_stats() -> None:
     assert "角色 token" in page
 
 
-def test_render_index_html_has_file_picker_and_records() -> None:
-    page = render_index_html(
-        [
-            {
-                "title": "session_1",
-                "href": "session_1/trace.html",
-                "events": 10,
-                "tool_calls": 2,
-                "estimated_tokens": 100,
-                "updated": "2026-05-09 12:00:00",
-            }
-        ]
-    )
+def test_static_index_html_has_file_picker_and_records() -> None:
+    page = Path("index.html").read_text(encoding="utf-8")
 
     assert 'type="file"' in page
     assert 'src="records.js"' in page
@@ -105,7 +94,6 @@ def test_render_index_html_has_file_picker_and_records() -> None:
     assert "当前记录来源" in page
     assert "选择 out 目录刷新记录" not in page
     assert "重新载入入口页" not in page
-    assert "session_1/trace.html" in page
     assert "Estimated tokens" in page
     assert "--bg: #071019" in page
 

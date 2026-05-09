@@ -13,7 +13,7 @@ It is designed for learning how an agent actually behaves: what the user asked, 
 - Open the Mermaid diagram as a full-page dark-background viewer.
 - Generate Markdown, Mermaid, and normalized JSON outputs.
 - Estimate transcript token footprint with `tiktoken`.
-- Create a root-level `index.html` entry page that previews local JSON files and links generated traces.
+- Use the tracked root-level `index.html` entry page to preview local JSON files and link generated traces.
 - Generate a local `records.js` index manifest so `index.html` can show generated traces without editing the tracked entry page.
 
 ## Install
@@ -129,7 +129,7 @@ The entry page can:
 - Show message count, tool call count, model, platform, and file size.
 - Link to previously generated `trace.html` pages.
 
-Because static browser pages cannot write local files, full trace generation still happens through the CLI.
+Because static browser pages cannot execute local Python commands or write local files, full trace generation happens through the CLI. The CLI writes `out/` and `records.js`; the tracked `index.html` reads `records.js`.
 
 ## Development
 
