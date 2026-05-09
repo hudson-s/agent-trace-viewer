@@ -148,7 +148,7 @@ The tool only reconstructs what exists in the JSON. It can show messages, tool n
 
 It cannot recover hidden model reasoning or exact provider usage data when those fields were not exported.
 
-Generated output under `out/` and the local root `index.html` entry page are ignored by Git.
+Generated output under `out/` is ignored by Git. The root-level `index.html` entry page is part of the project.
 
 ## License
 

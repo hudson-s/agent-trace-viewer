@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Trace Viewer</title>
+  <style>
+    :root {
+      --bg: #071019;
+      --panel: #0d1824;
+      --panel-2: #101f2e;
+      --line: #234058;
+      --line-bright: #2dd4bf;
+      --text: #e6f1ff;
+      --muted: #8aa4b8;
+      --blue: #38bdf8;
+      --green: #34d399;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; background: radial-gradient(circle at 20% 0%, rgba(56,189,248,.18), transparent 34%), radial-gradient(circle at 82% 12%, rgba(45,212,191,.13), transparent 30%), var(--bg); color: var(--text); }
+    main { max-width: 1100px; margin: 0 auto; padding: 30px 18px; }
+    .hero { padding: 18px 0 8px; }
+    h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: 0; }
+    .lead { margin: 0 0 22px; color: var(--muted); line-height: 1.6; }
+    .panel { background: linear-gradient(180deg, rgba(16,31,46,.96), rgba(13,24,36,.96)); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin: 14px 0; box-shadow: 0 18px 50px rgba(0,0,0,.24); }
+    .panel h2 { margin: 0 0 12px; font-size: 18px; }
+    input[type="file"] { display: block; width: 100%; max-width: 560px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: #08131d; color: var(--text); }
+    input[type="file"]::file-selector-button { border: 1px solid var(--line-bright); border-radius: 8px; background: rgba(45,212,191,.12); color: var(--text); padding: 7px 10px; margin-right: 10px; cursor: pointer; }
+    .hint { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .preview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+    .metric { border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: rgba(8,19,29,.86); }
+    .metric b { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+    .metric span { font-size: 18px; font-weight: 700; overflow-wrap: anywhere; }
+    .records { display: grid; gap: 10px; }
+    .record { background: rgba(13,24,36,.92); border: 1px solid var(--line); border-radius: 8px; padding: 14px; transition: border-color .15s ease, transform .15s ease; }
+    .record:hover { border-color: var(--line-bright); transform: translateY(-1px); }
+    .record a { color: var(--blue); text-decoration: none; }
+    .record a:hover { text-decoration: underline; }
+    .record h2 { margin: 0 0 10px; font-size: 18px; }
+    .record-meta { display: flex; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }
+    .record-meta span { border: 1px solid var(--line); border-radius: 999px; padding: 4px 8px; background: rgba(8,19,29,.8); }
+    .empty { color: var(--muted); }
+    code { background: #08131d; border: 1px solid var(--line); border-radius: 6px; padding: 2px 5px; color: var(--green); }
+    @media (max-width: 760px) {
+      .preview { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero">
+      <h1>Agent Trace Viewer</h1>
+      <p class="lead">选择本地 JSON 做快速预览，或进入已经生成好的 trace。适合学习 agent 每一步如何对话、调用工具、读取结果。</p>
+    </section>
+
+    <section class="panel">
+      <h2>选择本地 JSON</h2>
+      <input id="jsonFile" type="file" accept=".json,application/json">
+      <p class="hint">浏览器安全限制下，静态 HTML 只能读取你主动选择的文件并做预览，不能自动写入生成结果。完整 trace 请继续用 CLI 生成。</p>
+      <div id="preview" class="preview" hidden></div>
+      <p id="commandHint" class="hint"></p>
+    </section>
+
+    <section class="panel">
+      <h2>已生成记录</h2>
+      <div class="records">
+        <p class='empty'>还没有生成过 trace。先用 CLI 生成一个记录，这里会自动出现导航。</p>
+      </div>
+    </section>
+  </main>
+  <script>
+    const input = document.getElementById("jsonFile");
+    const preview = document.getElementById("preview");
+    const commandHint = document.getElementById("commandHint");
+
+    function countToolCalls(messages) {
+      return messages.reduce((sum, message) => {
+        const calls = Array.isArray(message && message.tool_calls) ? message.tool_calls.length : 0;
+        return sum + calls;
+      }, 0);
+    }
+
+    function metric(label, value) {
+      return `<div class="metric"><b>${label}</b><span>${value ?? ""}</span></div>`;
+    }
+
+    input.addEventListener("change", async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const messages = Array.isArray(data) ? data : Array.isArray(data.messages) ? data.messages : [];
+        const sessionId = data.session_id || file.name.replace(/\.json$/i, "");
+        preview.innerHTML = [
+          metric("文件", file.name),
+          metric("Session", sessionId),
+          metric("Model", data.model || "unknown"),
+          metric("Platform", data.platform || "unknown"),
+          metric("Messages", messages.length),
+          metric("Tool calls", countToolCalls(messages)),
+          metric("Size", `${Math.round(file.size / 1024)} KB`),
+          metric("Source", Array.isArray(data) ? "message_list" : "json_object")
+        ].join("");
+        preview.hidden = false;
+        commandHint.innerHTML = `生成完整视图：<code>agent-trace "${file.name}" --out out/${sessionId}</code>`;
+      } catch (error) {
+        preview.innerHTML = metric("解析失败", error.message);
+        preview.hidden = false;
+        commandHint.textContent = "";
+      }
+    });
+  </script>
+</body>
+</html>
