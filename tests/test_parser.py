@@ -2,7 +2,7 @@ from pathlib import Path
 
 from agent_trace_viewer.cli import _scan_records
 from agent_trace_viewer.parser import parse_file
-from agent_trace_viewer.renderers import render_html, render_index_html, render_mermaid, render_mermaid_markdown
+from agent_trace_viewer.renderers import render_html, render_index_html, render_mermaid, render_mermaid_markdown, render_records_js
 
 
 def test_parse_openai_chat_fixture() -> None:
@@ -99,10 +99,18 @@ def test_render_index_html_has_file_picker_and_records() -> None:
     )
 
     assert 'type="file"' in page
+    assert 'src="records.js"' in page
     assert "已生成记录" in page
     assert "session_1/trace.html" in page
     assert "Estimated tokens" in page
     assert "--bg: #071019" in page
+
+
+def test_render_records_js_sets_global_records() -> None:
+    script = render_records_js([{"title": "session_1", "href": "out/session_1/trace.html"}])
+
+    assert "window.AGENT_TRACE_RECORDS" in script
+    assert "out/session_1/trace.html" in script
 
 
 def test_scan_records_links_from_project_root(tmp_path: Path) -> None:

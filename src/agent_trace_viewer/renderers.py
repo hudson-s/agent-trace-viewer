@@ -415,29 +415,12 @@ def render_html(trace: Trace) -> str:
 """
 
 
-def render_index_html(records: list[dict[str, object]]) -> str:
-    cards = []
-    for record in records:
-        title = html.escape(str(record.get("title") or "Untitled trace"))
-        href = html.escape(str(record.get("href") or "#"))
-        updated = html.escape(str(record.get("updated") or ""))
-        events = html.escape(str(record.get("events") or "0"))
-        tool_calls = html.escape(str(record.get("tool_calls") or "0"))
-        tokens = html.escape(str(record.get("estimated_tokens") or "0"))
-        cards.append(
-            "<article class='record'>"
-            f"<a href='{href}'><h2>{title}</h2></a>"
-            "<div class='record-meta'>"
-            f"<span>Parsed events: {events}</span>"
-            f"<span>Tool calls: {tool_calls}</span>"
-            f"<span>Estimated tokens: {tokens}</span>"
-            f"<span>Updated: {updated}</span>"
-            "</div>"
-            "</article>"
-        )
+def render_records_js(records: list[dict[str, object]]) -> str:
+    return "window.AGENT_TRACE_RECORDS = " + json.dumps(records, ensure_ascii=False, indent=2) + ";\n"
 
-    record_list = "".join(cards) or "<p class='empty'>还没有生成过 trace。先用 CLI 生成一个记录，这里会自动出现导航。</p>"
 
+def render_index_html(records: list[dict[str, object]] | None = None) -> str:
+    initial_records = json.dumps(records or [], ensure_ascii=False)
     return f"""<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -480,6 +463,9 @@ def render_index_html(records: list[dict[str, object]]) -> str:
     .record-meta {{ display: flex; gap: 10px; flex-wrap: wrap; color: var(--muted); font-size: 13px; }}
     .record-meta span {{ border: 1px solid var(--line); border-radius: 999px; padding: 4px 8px; background: rgba(8,19,29,.8); }}
     .empty {{ color: var(--muted); }}
+    .actions {{ display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }}
+    .button {{ border: 1px solid var(--line-bright); border-radius: 8px; background: rgba(45,212,191,.12); color: var(--text); padding: 9px 12px; cursor: pointer; }}
+    .button:hover {{ background: rgba(45,212,191,.2); }}
     code {{ background: #08131d; border: 1px solid var(--line); border-radius: 6px; padding: 2px 5px; color: var(--green); }}
     @media (max-width: 760px) {{
       .preview {{ grid-template-columns: 1fr; }}
@@ -496,22 +482,66 @@ def render_index_html(records: list[dict[str, object]]) -> str:
     <section class="panel">
       <h2>选择本地 JSON</h2>
       <input id="jsonFile" type="file" accept=".json,application/json">
-      <p class="hint">浏览器安全限制下，静态 HTML 只能读取你主动选择的文件并做预览，不能自动写入生成结果。完整 trace 请继续用 CLI 生成。</p>
+      <p class="hint">浏览器安全限制下，静态 HTML 只能读取你主动选择的文件并做预览，不能自动写入生成结果。完整 trace 请继续用 CLI 生成；生成后刷新本页，或在下面选择 out 目录动态刷新记录。</p>
       <div id="preview" class="preview" hidden></div>
       <p id="commandHint" class="hint"></p>
     </section>
 
     <section class="panel">
       <h2>已生成记录</h2>
-      <div class="records">
-        {record_list}
+      <div class="actions">
+        <label class="button">
+          选择 out 目录刷新记录
+          <input id="outDir" type="file" webkitdirectory directory multiple hidden>
+        </label>
+        <button class="button" type="button" id="reloadPage">重新载入入口页</button>
       </div>
+      <p class="hint">如果刚运行过 CLI 生成 trace，刷新本页即可看到最新记录；如果浏览器没有刷新文件，可以选择项目里的 <code>out</code> 目录让页面直接读取记录。</p>
+      <div id="records" class="records"></div>
     </section>
   </main>
+  <script src="records.js"></script>
   <script>
+    const initialRecords = window.AGENT_TRACE_RECORDS || {initial_records};
     const input = document.getElementById("jsonFile");
+    const outDir = document.getElementById("outDir");
     const preview = document.getElementById("preview");
     const commandHint = document.getElementById("commandHint");
+    const recordsEl = document.getElementById("records");
+    const reloadPage = document.getElementById("reloadPage");
+
+    function renderRecords(records) {{
+      if (!records.length) {{
+        recordsEl.innerHTML = `<p class="empty">还没有生成过 trace。先用 CLI 生成一个记录，刷新本页，或选择 out 目录动态读取。</p>`;
+        return;
+      }}
+      recordsEl.innerHTML = records.map((record) => {{
+        const title = escapeHtml(record.title || "Untitled trace");
+        const href = escapeHtml(record.href || "#");
+        const updated = escapeHtml(record.updated || "");
+        const events = escapeHtml(String(record.events ?? 0));
+        const toolCalls = escapeHtml(String(record.tool_calls ?? 0));
+        const tokens = escapeHtml(String(record.estimated_tokens ?? 0));
+        return `<article class="record">
+          <a href="${{href}}"><h2>${{title}}</h2></a>
+          <div class="record-meta">
+            <span>Parsed events: ${{events}}</span>
+            <span>Tool calls: ${{toolCalls}}</span>
+            <span>Estimated tokens: ${{tokens}}</span>
+            <span>Updated: ${{updated}}</span>
+          </div>
+        </article>`;
+      }}).join("");
+    }}
+
+    function escapeHtml(value) {{
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }}
 
     function countToolCalls(messages) {{
       return messages.reduce((sum, message) => {{
@@ -523,6 +553,8 @@ def render_index_html(records: list[dict[str, object]]) -> str:
     function metric(label, value) {{
       return `<div class="metric"><b>${{label}}</b><span>${{value ?? ""}}</span></div>`;
     }}
+
+    reloadPage.addEventListener("click", () => window.location.reload());
 
     input.addEventListener("change", async () => {{
       const file = input.files && input.files[0];
@@ -550,6 +582,37 @@ def render_index_html(records: list[dict[str, object]]) -> str:
         commandHint.textContent = "";
       }}
     }});
+
+    outDir.addEventListener("change", async () => {{
+      const files = Array.from(outDir.files || []);
+      const timelines = files.filter((file) => file.name === "timeline.json");
+      const records = [];
+      for (const file of timelines) {{
+        try {{
+          const data = JSON.parse(await file.text());
+          const summary = data.summary || {{}};
+          const parts = file.webkitRelativePath.split("/");
+          const traceIndex = parts.lastIndexOf("timeline.json");
+          const sessionParts = parts.slice(0, traceIndex);
+          const sessionName = sessionParts[sessionParts.length - 1] || "trace";
+          const href = `${{sessionParts.join("/")}}/trace.html`;
+          records.push({{
+            title: sessionName,
+            href,
+            updated: "browser-selected",
+            events: summary.events || 0,
+            tool_calls: summary.tool_calls || 0,
+            estimated_tokens: summary.estimated_tokens && summary.estimated_tokens.total || 0
+          }});
+        }} catch (error) {{
+          console.warn("Failed to read timeline", file.webkitRelativePath, error);
+        }}
+      }}
+      records.sort((a, b) => a.title.localeCompare(b.title));
+      renderRecords(records);
+    }});
+
+    renderRecords(initialRecords);
   </script>
 </body>
 </html>

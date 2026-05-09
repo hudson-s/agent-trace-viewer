@@ -11,6 +11,7 @@ from .renderers import (
     render_markdown,
     render_mermaid,
     render_mermaid_markdown,
+    render_records_js,
     render_timeline_json,
 )
 
@@ -41,9 +42,13 @@ def main() -> int:
         (args.out / "trace.html").write_text(render_html(trace), encoding="utf-8")
         index_path = Path.cwd() / "index.html"
         records_root = Path.cwd() / "out"
-        index_path.write_text(render_index_html(_scan_records(records_root, index_path.parent)), encoding="utf-8")
+        records = _scan_records(records_root, index_path.parent)
+        (Path.cwd() / "records.js").write_text(render_records_js(records), encoding="utf-8")
+        if not index_path.exists():
+            index_path.write_text(render_index_html(), encoding="utf-8")
         print(f"Wrote trace views to {args.out}")
         print(f"Wrote index to {index_path}")
+        print(f"Wrote records to {Path.cwd() / 'records.js'}")
         return 0
 
     renderers = {
